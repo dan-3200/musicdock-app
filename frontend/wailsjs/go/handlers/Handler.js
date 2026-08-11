@@ -18,10 +18,22 @@ export function GetSearchSuggestions(arg1) {
   return window['go']['handlers']['Handler']['GetSearchSuggestions'](arg1);
 }
 
+export function GetTrayIconEnabled() {
+  return window['go']['handlers']['Handler']['GetTrayIconEnabled']();
+}
+
 export function SaveSongDialog(arg1) {
   return window['go']['handlers']['Handler']['SaveSongDialog'](arg1);
 }
 
 export function SearchVideos(arg1) {
   return window['go']['handlers']['Handler']['SearchVideos'](arg1);
+}
+
+export function SetTrayIconEnabled(arg1) {
+  return window['go']['handlers']['Handler']['SetTrayIconEnabled'](arg1);
+}
+
+export function StartTrayIfEnabled() {
+  return window['go']['handlers']['Handler']['StartTrayIfEnabled']();
 }

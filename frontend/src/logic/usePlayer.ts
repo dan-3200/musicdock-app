@@ -11,6 +11,57 @@ export interface VideoResult {
 	url: string;
 }
 
+export interface HistoryEntry extends VideoResult {
+	playedAt: number;
+}
+
+const HISTORY_STORAGE_KEY = 'musicdock.playback-history.v1';
+const HISTORY_LIMIT = 30;
+
+export function usePlaybackHistory() {
+	const [history, setHistory] = useState<HistoryEntry[]>(() => {
+		try {
+			const stored = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+			const parsed: unknown = stored ? JSON.parse(stored) : [];
+			return Array.isArray(parsed) ? parsed.filter(isHistoryEntry).slice(0, HISTORY_LIMIT) : [];
+		} catch {
+			return [];
+		}
+	});
+
+	const save = useCallback((entries: HistoryEntry[]) => {
+		setHistory(entries);
+		try {
+			window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries));
+		} catch {
+			// O player continua utilizável mesmo se o armazenamento do WebView estiver indisponível.
+		}
+	}, []);
+
+	const record = useCallback((song: VideoResult) => {
+		setHistory((current) => {
+			const next = [{ ...song, playedAt: Date.now() }, ...current.filter((entry) => entry.id !== song.id)].slice(0, HISTORY_LIMIT);
+			try {
+				window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(next));
+			} catch {
+				// O histórico em memória permanece disponível nesta sessão.
+			}
+			return next;
+		});
+	}, []);
+
+	const clear = useCallback(() => save([]), [save]);
+
+	return { history, record, clear };
+}
+
+function isHistoryEntry(value: unknown): value is HistoryEntry {
+	if (!value || typeof value !== 'object') return false;
+	const entry = value as Partial<HistoryEntry>;
+	return typeof entry.id === 'string' && typeof entry.title === 'string' &&
+		typeof entry.thumbnail === 'string' && typeof entry.url === 'string' && typeof entry.playedAt === 'number';
+}
+
 export type LoopMode = 'off' | 'all' | 'one';
 
 // ─── useSearch ────────────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ import (
 	"embed"
 	"music-app/internal/handlers"
 
-	"github.com/getlantern/systray"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -19,18 +18,17 @@ var assets embed.FS
 var recursos embed.FS
 
 func main() {
-	app := handlers.InitHandlers()
-
-	go func() {
-		systray.Run(handlers.OnReady(app, recursos), handlers.OnExit)
-	}()
+	app := handlers.InitHandlers(recursos)
+	app.StartTrayIfEnabled()
 
 	err := wails.Run(&options.App{
-		Title:         "MusicDock Engine",
-		Width:         480,
-		Height:        480,
-		Frameless:     true,
-		DisableResize: true,
+		Title:           "MusicDock Engine",
+		Width:           480,
+		Height:          480,
+		Frameless:       true,
+		DisableResize:   true,
+		CSSDragProperty: "--wails-draggable",
+		CSSDragValue:    "drag",
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
