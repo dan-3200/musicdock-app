@@ -8,19 +8,17 @@ import (
 
 	"music-app/internal/service"
 
-	r "runtime"
-
-	"github.com/getlantern/systray"
 	"github.com/hugolgst/rich-go/client"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Handler struct {
-	ctx context.Context
+	ctx  context.Context
+	tray *trayManager
 }
 
-func InitHandlers() *Handler {
-	return &Handler{}
+func InitHandlers(resources embed.FS) *Handler {
+	return &Handler{tray: newTrayManager(resources, loadTrayPreference())}
 }
 
 func (it *Handler) Startup(ctx context.Context) {
@@ -65,43 +63,20 @@ func (it *Handler) SearchVideos(query string) ([]service.VideoResult, error) {
 	return service.SearchVideos(query)
 }
 
+func (it *Handler) StartTrayIfEnabled() {
+	it.tray.StartIfEnabled(it)
+}
+
+func (it *Handler) GetTrayIconEnabled() bool {
+	return it.tray.Enabled()
+}
+
+// SetTrayIconEnabled retorna true quando a preferência foi salva, mas o ícone
+// só poderá ser restaurado no próximo início do app.
+func (it *Handler) SetTrayIconEnabled(enabled bool) (bool, error) {
+	return it.tray.SetEnabled(it, enabled)
+}
+
 // func (it *Handler) SetDiscordPresence(details string, state string) error {
 // 	return service.SetDiscordPresence(details, state)
 // }
-
-func OnReady(app *Handler, recursos embed.FS) func() {
-	return func() {
-		var iconBytes []byte
-		sytemaOperacional := r.GOOS
-		switch sytemaOperacional {
-		case "windows":
-			iconBytes, _ = recursos.ReadFile("img/icon.ico")
-		default:
-			iconBytes, _ = recursos.ReadFile("img/appicon.png")
-		}
-		systray.SetIcon(iconBytes)
-
-		systray.SetTitle("Meu App")
-		systray.SetTooltip("Clique para abrir")
-
-		mOpen := systray.AddMenuItem("Abrir App", "Mostra a janela")
-		mHidden := systray.AddMenuItem("Esconder App", "Esconde o App")
-		mQuit := systray.AddMenuItem("Sair", "Fecha o app")
-
-		for {
-			select {
-			case <-mOpen.ClickedCh:
-				runtime.WindowShow(app.ctx)
-			case <-mHidden.ClickedCh:
-				runtime.Hide(app.ctx)
-			case <-mQuit.ClickedCh:
-				runtime.Quit(app.ctx)
-				return
-			}
-		}
-	}
-}
-
-func OnExit() {
-	// Limpeza se necessário
-}

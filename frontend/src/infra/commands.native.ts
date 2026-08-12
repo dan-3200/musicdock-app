@@ -30,6 +30,14 @@ export class NativeCommands {
 		return await wails.GetSearchSuggestions(input);
 	};
 
+	static GetTrayIconEnabled = async () => {
+		return await wails.GetTrayIconEnabled();
+	};
+
+	static SetTrayIconEnabled = async (enabled: boolean) => {
+		return await wails.SetTrayIconEnabled(enabled);
+	};
+
 	static SearchVideos = async (query: string) => {
 		return await wails.SearchVideos(query);
 	};
