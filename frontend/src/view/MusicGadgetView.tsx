@@ -191,58 +191,71 @@ export function MusicGadgetView() {
           </div>
         </header>
 
+        <div className="app-workspace">
         <div className="dock-content">
           <AnimatePresence mode="wait" initial={false}>
           {view === "now" && (
             <motion.div key="now" className="view-motion now-playing" {...viewMotion}>
-              <div className="now-playing__hero">
-                <SongArtwork song={activeItem} playing={isPlaying} />
-                <div className="now-playing__meta">
-                  <p className="eyebrow">{activeItem ? "TOCANDO AGORA" : "BEM-VINDO"}</p>
-                  <h1>{activeItem?.title ?? "Sua próxima música começa aqui"}</h1>
-                  <p className="now-playing__hint">{activeItem ? "YouTube · streaming" : "Busque uma faixa e adicione à fila."}</p>
+              <section className="player-card" aria-label="Player atual">
+                <div className="player-card__art" aria-hidden="true">
+                  {activeItem?.thumbnail ? <img src={activeItem.thumbnail} alt="" /> : <Music2 />}
+                </div>
+                <div className="player-card__scrim" aria-hidden="true" />
+
+                <div className="player-card__top">
+                  <div className="player-card__actions">
+                    <IconButton label="Adicionar à playlist" onClick={() => activeItem && setPlaylistTarget(activeItem)} disabled={!activeItem}><ListPlus /></IconButton>
+                    <IconButton label={activeItem && isLiked(activeItem) ? "Remover das músicas curtidas" : "Curtir música"} active={!!activeItem && isLiked(activeItem)} onClick={() => activeItem && toggleLike(activeItem)} disabled={!activeItem}>
+                      <Heart fill={activeItem && isLiked(activeItem) ? "currentColor" : "none"} />
+                    </IconButton>
+                  </div>
+                </div>
+              </section>
+
+              <div className="player-track">
+                <div>
+                  <p>TOCANDO AGORA</p>
+                  <h2 title={activeItem?.title}>{activeItem?.title ?? "Nada tocando"}</h2>
+                  <span>{activeItem ? "YouTube · streaming" : "Escolha uma faixa em Descobrir"}</span>
                 </div>
               </div>
 
-              {error && <p className="player-error" role="alert">Não foi possível carregar esta faixa.</p>}
+              <div className="player-playback">
+                {error && <p className="player-error" role="alert">Não foi possível carregar esta faixa.</p>}
+                <div className="progress-block">
+                  <input
+                    aria-label="Progresso da música"
+                    aria-valuetext={`${formatTime(currentTime)} de ${formatTime(duration)}`}
+                    className="dock-range dock-range--progress"
+                    type="range"
+                    min="0"
+                    max={duration || 1}
+                    step="0.1"
+                    value={Math.min(currentTime, duration || 0)}
+                    disabled={!activeItem || duration <= 0}
+                    onChange={handleSeek}
+                    style={{ "--progress": `${duration ? (currentTime / duration) * 100 : 0}%` } as CSSProperties & { "--progress": string }}
+                  />
+                  <div className="time-row"><span>{formatTime(currentTime)}</span><span>-{formatTime(Math.max(0, duration - currentTime))}</span></div>
+                </div>
 
-              <div className="progress-block">
-                <input
-                  aria-label="Progresso da música"
-                  aria-valuetext={`${formatTime(currentTime)} de ${formatTime(duration)}`}
-                  className="dock-range dock-range--progress"
-                  type="range"
-                  min="0"
-                  max={duration || 1}
-                  step="0.1"
-                  value={Math.min(currentTime, duration || 0)}
-                  disabled={!activeItem || duration <= 0}
-                  onChange={handleSeek}
-                  style={{ "--progress": `${duration ? (currentTime / duration) * 100 : 0}%` } as CSSProperties & { "--progress": string }}
-                />
-                <div className="time-row"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
+                <div className="transport" aria-label="Controles de reprodução">
+                  <IconButton label="Faixa anterior" onClick={playPrev} disabled={!hasPrev}><SkipBack fill="currentColor" /></IconButton>
+                  <button type="button" className="play-button" aria-label={isPaused ? "Tocar" : "Pausar"} onClick={isPaused ? play : pause} disabled={!activeItem || isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : isPaused ? <Play fill="currentColor" /> : <Pause fill="currentColor" />}
+                  </button>
+                  <IconButton label="Próxima faixa" onClick={playNext} disabled={!hasNext}><SkipForward fill="currentColor" /></IconButton>
+                </div>
               </div>
 
-              <div className="transport" aria-label="Controles de reprodução">
+              <div className="player-utility" aria-label="Opções de reprodução">
                 <IconButton label="Embaralhar" active={shuffle} onClick={toggleShuffle}><Shuffle /></IconButton>
-                <IconButton label="Faixa anterior" onClick={playPrev} disabled={!hasPrev}><SkipBack fill="currentColor" /></IconButton>
-                <button type="button" className="play-button" aria-label={isPaused ? "Tocar" : "Pausar"} onClick={isPaused ? play : pause} disabled={!activeItem || isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : isPaused ? <Play fill="currentColor" /> : <Pause fill="currentColor" />}
-                </button>
-                <IconButton label="Próxima faixa" onClick={playNext} disabled={!hasNext}><SkipForward fill="currentColor" /></IconButton>
                 <IconButton label={loop === "one" ? "Repetir faixa" : "Repetir fila"} active={loop !== "off"} onClick={cycleLoop}>{loop === "one" ? <Repeat1 /> : <Repeat />}</IconButton>
-              </div>
-
-              <div className="now-playing__footer">
                 <button type="button" className={`autoplay-toggle ${autoplay ? "is-on" : ""}`} onClick={toggleAutoplay}><span />Autoplay</button>
                 <div className="volume-control">
                   <button type="button" aria-label="Alternar mudo" onClick={toggleMute}>{volume === 0 ? <VolumeX /> : <Volume2 />}</button>
                   <input aria-label="Volume" className="dock-range" type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} />
                 </div>
-                <IconButton label={activeItem && isLiked(activeItem) ? "Remover das músicas curtidas" : "Curtir música"} active={!!activeItem && isLiked(activeItem)} onClick={() => activeItem && toggleLike(activeItem)} disabled={!activeItem}>
-                  <Heart fill={activeItem && isLiked(activeItem) ? "currentColor" : "none"} />
-                </IconButton>
-                <IconButton label="Adicionar à playlist" onClick={() => activeItem && setPlaylistTarget(activeItem)} disabled={!activeItem}><ListPlus /></IconButton>
                 <IconButton label="Baixar faixa" onClick={download} disabled={!activeItem || isDownloading}>{isDownloading ? <Loader2 className="animate-spin" /> : <Download />}</IconButton>
               </div>
             </motion.div>
@@ -430,6 +443,7 @@ export function MusicGadgetView() {
           <button type="button" className={view === "queue" ? "is-active" : ""} onClick={() => setView("queue")}><ListMusic /><span>Fila</span>{queue.length > 0 && <b>{queue.length}</b>}</button>
           <button type="button" className={view === "settings" ? "is-active" : ""} onClick={() => setView("settings")}><Settings /><span>Config</span></button>
         </nav>
+        </div>
 
         {playlistTarget && (
           <PlaylistPicker
