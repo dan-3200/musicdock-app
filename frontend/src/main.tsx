@@ -1,10 +1,10 @@
 import './tailwind.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MusicGadgetView } from './view/MusicGadgetView';
+import { View } from './view';
 
 createRoot(document.getElementById('root')!).render(
    <StrictMode>
-      <MusicGadgetView />
+      <View />
    </StrictMode>,
 )
