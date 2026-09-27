@@ -8,8 +8,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/getlantern/systray"
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 const settingsFileName = "settings.json"
@@ -18,24 +17,67 @@ type persistedSettings struct {
 	TrayIconEnabled bool `json:"trayIconEnabled"`
 }
 
-type trayManager struct {
-	mu          sync.RWMutex
-	resources   embed.FS
-	enabled     bool
-	everStarted bool
-	running     bool
+type trayIcon interface {
+	Show()
+	Hide()
 }
 
-func newTrayManager(resources embed.FS, enabled bool) *trayManager {
-	return &trayManager{resources: resources, enabled: enabled}
+type trayManager struct {
+	mu       sync.RWMutex
+	enabled  bool
+	tray     trayIcon
+	newTray  func() trayIcon
+	savePref func(bool) error
+}
+
+func newTrayManager(app *application.App, window *application.WebviewWindow, resources embed.FS, enabled bool) *trayManager {
+	manager := &trayManager{enabled: enabled, savePref: saveTrayPreference}
+	manager.newTray = func() trayIcon {
+		tray := app.SystemTray.New()
+		iconPath := "img/appicon.png"
+		if runtime.GOOS == "windows" {
+			iconPath = "img/icon.ico"
+		}
+		iconBytes, err := resources.ReadFile(iconPath)
+		if err == nil {
+			tray.SetIcon(iconBytes)
+		}
+		tray.SetTooltip("MusicDock · clique para abrir")
+
+		menu := app.NewMenu()
+		menu.Add("Abrir MusicDock").OnClick(func(*application.Context) {
+			window.Show().Focus()
+		})
+		menu.Add("Esconder MusicDock").OnClick(func(*application.Context) {
+			window.Hide()
+		})
+		menu.AddSeparator()
+		menu.Add("Sair").OnClick(func(*application.Context) {
+			app.Quit()
+		})
+		tray.SetMenu(menu)
+		tray.OnClick(func() {
+			if window.IsVisible() {
+				window.Hide()
+				return
+			}
+			window.Show().Focus()
+		})
+		return tray
+	}
+	return manager
 }
 
 func loadTrayPreference() bool {
-	settings := persistedSettings{TrayIconEnabled: true}
 	path, err := settingsPath()
 	if err != nil {
-		return settings.TrayIconEnabled
+		return true
 	}
+	return loadTrayPreferenceAt(path)
+}
+
+func loadTrayPreferenceAt(path string) bool {
+	settings := persistedSettings{TrayIconEnabled: true}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return settings.TrayIconEnabled
@@ -51,6 +93,10 @@ func saveTrayPreference(enabled bool) error {
 	if err != nil {
 		return err
 	}
+	return saveTrayPreferenceAt(path, enabled)
+}
+
+func saveTrayPreferenceAt(path string, enabled bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -75,84 +121,36 @@ func (manager *trayManager) Enabled() bool {
 	return manager.enabled
 }
 
-func (manager *trayManager) StartIfEnabled(app *Handler) {
-	manager.mu.RLock()
-	enabled := manager.enabled
-	manager.mu.RUnlock()
-	if enabled {
-		manager.start(app)
+func (manager *trayManager) StartIfEnabled() {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	if manager.enabled {
+		manager.showLocked()
 	}
 }
 
-func (manager *trayManager) SetEnabled(app *Handler, enabled bool) (bool, error) {
-	if err := saveTrayPreference(enabled); err != nil {
-		return false, err
+func (manager *trayManager) SetEnabled(enabled bool) error {
+	if err := manager.savePref(enabled); err != nil {
+		return err
 	}
 
 	manager.mu.Lock()
+	defer manager.mu.Unlock()
 	manager.enabled = enabled
-	running := manager.running
-	everStarted := manager.everStarted
-	if !enabled {
-		manager.running = false
+	if enabled {
+		manager.showLocked()
+		return nil
 	}
-	manager.mu.Unlock()
-
-	if !enabled {
-		if running {
-			systray.Quit()
-		}
-		return false, nil
+	if manager.tray != nil {
+		manager.tray.Hide()
 	}
-	if !everStarted {
-		manager.start(app)
-		return false, nil
-	}
-	return !running, nil
+	return nil
 }
 
-func (manager *trayManager) start(app *Handler) {
-	manager.mu.Lock()
-	if manager.everStarted {
-		manager.mu.Unlock()
+func (manager *trayManager) showLocked() {
+	if manager.tray == nil {
+		manager.tray = manager.newTray()
 		return
 	}
-	manager.everStarted = true
-	manager.running = true
-	manager.mu.Unlock()
-
-	go systray.Run(manager.onReady(app), func() {
-		manager.mu.Lock()
-		manager.running = false
-		manager.mu.Unlock()
-	})
-}
-
-func (manager *trayManager) onReady(app *Handler) func() {
-	return func() {
-		iconPath := "img/appicon.png"
-		if runtime.GOOS == "windows" {
-			iconPath = "img/icon.ico"
-		}
-		iconBytes, _ := manager.resources.ReadFile(iconPath)
-		systray.SetIcon(iconBytes)
-		systray.SetTitle("MusicDock")
-		systray.SetTooltip("MusicDock · clique para abrir")
-
-		openItem := systray.AddMenuItem("Abrir MusicDock", "Mostra a janela")
-		hideItem := systray.AddMenuItem("Esconder MusicDock", "Esconde a janela")
-		quitItem := systray.AddMenuItem("Sair", "Fecha o MusicDock")
-
-		for {
-			select {
-			case <-openItem.ClickedCh:
-				wailsRuntime.WindowShow(app.ctx)
-			case <-hideItem.ClickedCh:
-				wailsRuntime.Hide(app.ctx)
-			case <-quitItem.ClickedCh:
-				wailsRuntime.Quit(app.ctx)
-				return
-			}
-		}
-	}
+	manager.tray.Show()
 }

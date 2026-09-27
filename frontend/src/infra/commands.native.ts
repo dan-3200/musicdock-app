@@ -1,44 +1,52 @@
-import * as wails from '../../../frontend/wailsjs/go/handlers/Handler';
-import { WindowMinimise, Hide } from '../../wailsjs/runtime';
+import { Application, Window } from '@wailsio/runtime';
+import {
+	DownloadSong,
+	GetAudioUrl,
+	GetSearchSuggestions,
+	GetTrayIconEnabled,
+	SaveSongDialog,
+	SearchVideos,
+	SetTrayIconEnabled,
+} from '../../bindings/music-app/internal/handlers/handler';
 
 export class NativeCommands {
 	static Minimizar = async () => {
-		await WindowMinimise();
+		await Window.Minimise();
 	};
 
 	static CloseWindow = async () => {
-		await wails.CloseWindow();
+		await Application.Quit();
 	};
 
 	static SaveSongDialog = async () => {
-		return await wails.SaveSongDialog('minha_musica');
+		return await SaveSongDialog('minha_musica');
 	};
 
 	static GetAudioUrl = async (url: string) => {
-		return await wails.GetAudioUrl(url);
+		return await GetAudioUrl(url);
 	};
 
 	static DownloadSong = async (url: string, pathName: string) => {
-		await wails.DownloadSong(url, pathName);
+		await DownloadSong(url, pathName);
 	};
 
-	static WindowHide = () => {
-		Hide();
+	static WindowHide = async () => {
+		await Window.Hide();
 	};
 
 	static GetSearchSuggestions = async (input: string) => {
-		return await wails.GetSearchSuggestions(input);
+		return await GetSearchSuggestions(input);
 	};
 
 	static GetTrayIconEnabled = async () => {
-		return await wails.GetTrayIconEnabled();
+		return await GetTrayIconEnabled();
 	};
 
 	static SetTrayIconEnabled = async (enabled: boolean) => {
-		return await wails.SetTrayIconEnabled(enabled);
+		await SetTrayIconEnabled(enabled);
 	};
 
 	static SearchVideos = async (query: string) => {
-		return await wails.SearchVideos(query);
+		return await SearchVideos(query);
 	};
 }

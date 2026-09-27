@@ -2,64 +2,68 @@ package main
 
 import (
 	"embed"
+	"log"
+
 	"music-app/internal/handlers"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 //go:embed all:img/*
-var recursos embed.FS
+var resources embed.FS
 
 func main() {
-	app := handlers.InitHandlers(recursos)
-	app.StartTrayIfEnabled()
+	var mainWindow *application.WebviewWindow
 
-	err := wails.Run(&options.App{
-		Title:           "MusicDock Engine",
-		Width:           480,
-		Height:          480,
-		Frameless:       true,
-		DisableResize:   true,
-		CSSDragProperty: "--wails-draggable",
-		CSSDragValue:    "drag",
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	app := application.New(application.Options{
+		Name:        "MusicDock",
+		Description: "MusicDock desktop music player",
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
 		},
-		SingleInstanceLock: &options.SingleInstanceLock{
-			UniqueId: "voss-musicdock-engine-123",
-		},
-		BackgroundColour: &options.RGBA{R: 40, G: 40, B: 43, A: 0},
-		OnStartup:        app.Startup,
-		OnShutdown:       app.Shutdown,
-		Bind: []any{
-			app,
-		},
-		Windows: &windows.Options{
-			WebviewIsTransparent:              true,
-			WindowIsTranslucent:               true,
-			BackdropType:                      windows.None, // Fundamental para transparência total
-			DisableFramelessWindowDecorations: true,         // ESTA é a chave para remover bordas nativas
-			IsZoomControlEnabled:              false,
-		},
-		Mac: &mac.Options{
-			TitleBar: &mac.TitleBar{
-				TitlebarAppearsTransparent: true,
-				HideTitle:                  true,
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.daniel.musicdock",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				if mainWindow != nil {
+					mainWindow.Restore()
+					mainWindow.Show().Focus()
+				}
 			},
-			Appearance:           mac.NSAppearanceNameDarkAqua,
-			WebviewIsTransparent: true,
-			WindowIsTranslucent:  true,
+		},
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 	})
 
-	if err != nil {
-		println("Error:", err.Error())
+	mainWindow = app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:               "main",
+		Title:              "MusicDock Engine",
+		Width:              480,
+		Height:             480,
+		Frameless:          true,
+		DisableResize:      true,
+		BackgroundType:     application.BackgroundTypeTransparent,
+		BackgroundColour:   application.NewRGBA(40, 40, 43, 0),
+		ZoomControlEnabled: false,
+		URL:                "/",
+		Windows: application.WindowsWindow{
+			BackdropType:                      application.None,
+			DisableFramelessWindowDecorations: true,
+		},
+		Mac: application.MacWindow{
+			TitleBar: application.MacTitleBarHidden,
+			Backdrop: application.MacBackdropTransparent,
+			Appearance: application.NSAppearanceNameDarkAqua,
+		},
+	})
+
+	handler := handlers.NewHandler(app, mainWindow, resources)
+	app.RegisterService(application.NewService(handler))
+
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
 	}
 }

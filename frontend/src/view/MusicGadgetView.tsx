@@ -92,7 +92,6 @@ export function MusicGadgetView() {
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [theme, setTheme] = useState<ThemeMode>(() => window.localStorage.getItem("musicdock.theme") === "dark" ? "dark" : "light");
   const [trayIconEnabled, setTrayIconEnabled] = useState(true);
-  const [trayRestartRequired, setTrayRestartRequired] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -125,9 +124,8 @@ export function MusicGadgetView() {
     const nextEnabled = !trayIconEnabled;
     setSettingsError(null);
     try {
-      const restartRequired = await NativeCommands.SetTrayIconEnabled(nextEnabled);
+      await NativeCommands.SetTrayIconEnabled(nextEnabled);
       setTrayIconEnabled(nextEnabled);
-      setTrayRestartRequired(restartRequired);
     } catch {
       setSettingsError("Não foi possível salvar a configuração da bandeja.");
     }
@@ -413,7 +411,6 @@ export function MusicGadgetView() {
                   </div>
                   <button type="button" role="switch" aria-checked={trayIconEnabled} className={`setting-switch ${trayIconEnabled ? "is-on" : ""}`} onClick={toggleTrayIcon}><span /></button>
                 </div>
-                {trayRestartRequired && <p className="settings-note">O ícone voltará no próximo início do app.</p>}
                 {settingsError && <p className="settings-error" role="alert">{settingsError}</p>}
               </section>
 

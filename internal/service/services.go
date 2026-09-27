@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hugolgst/rich-go/client"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func GetAudioUrl(url string) (string, error) {
@@ -47,21 +46,6 @@ func DownloadSong(url string, pathName string) error {
 
 	debug.FreeOSMemory()
 	return nil
-}
-
-func SaveSongDialog(ctx context.Context, songName string) (string, error) {
-	filepath, err := runtime.SaveFileDialog(ctx, runtime.SaveDialogOptions{
-		Title:           "Salvar Música",
-		DefaultFilename: songName + ".webm",
-		Filters: []runtime.FileFilter{
-			{DisplayName: "Audio Files (*.webm)", Pattern: "*.webm"},
-		},
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return filepath, nil // Retorna o caminho escolhido (ex: C:\Musicas\teste.webm)
 }
 
 func SetDiscordPresence(details string, state string) error {
